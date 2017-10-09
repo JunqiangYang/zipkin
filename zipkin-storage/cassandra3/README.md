@@ -2,12 +2,13 @@
 
 *This module is experimental. Please help test this, but do not use it in production.*
 
-This CQL-based Cassandra 3.9+ storage component includes a `GuavaSpanStore` and `GuavaSpanConsumer`.
-`GuavaSpanStore.getDependencies()` returns pre-aggregated dependency links (ex via [zipkin-dependencies](https://github.com/openzipkin/zipkin-dependencies)).
+This CQL-based Cassandra 3.9+ storage component, built upon the Zipkin2 API.
 
-The implementation uses the [Datastax Java Driver 3.x](https://github.com/datastax/java-driver).
+`CassandraSpanStore.getDependencies()` returns pre-aggregated dependency links (ex via [zipkin-dependencies](https://github.com/openzipkin/zipkin-dependencies)).
 
-`zipkin.storage.cassandra3.Cassandra3Storage.Builder` includes defaults that will operate against a local Cassandra installation.
+The implementation uses the [Datastax Java Driver 3.1.x](https://github.com/datastax/java-driver).
+
+`zipkin2.storage.cassandra3.Cassandra3Storage.Builder` includes defaults that will operate against a local Cassandra installation.
 
 ## Logging
 Queries are logged to the category "com.datastax.driver.core.QueryLogger" when debug or trace is
@@ -36,7 +37,7 @@ That said, all integration tests run on pull request via Travis.
 ## Tuning
 This component is tuned to help reduce the size of indexes needed to
 perform query operations. The most important aspects are described below.
-See [Cassandra3Storage](src/main/java/zipkin/storage/cassandra3/Cassandra3Storage.java) for details.
+See [Cassandra3Storage](src/main/java/zipkin2.storage.cassandra3/Cassandra3Storage.java) for details.
 
 ### Trace indexing
 Indexing in CQL is simplified by SASI, for example, reducing the number
@@ -44,18 +45,18 @@ of tables from 7 down to 4. SASI also moves some write-amplification from
 CassandraSpanConsumer into C*.
 
 CassandraSpanConsumer directly writes to the tables `traces`,
-`trace_by_service_span` and `span_name_by_service`. The latter two
+`trace_by_service_span` and `span_by_service`. The latter two
 amplify writes by a factor of the distinct service names in a span.
 Other amplification happens internally to C*, visible in the increase
 write latency (although write latency remains performant at single digit
 milliseconds).
 
-* A SASI index on its 'all_annotations' column permits full-text searches against annotations.
-* A SASI index on the 'duration' column.
+* A SASI index on its `annotation_query` column permits full-text searches against annotations.
+* A SASI index on the `duration` column.
+* A SASI index on the `l_service` column (the local_service name), which is used in conjunction with annotation_query searches.
 
-Note: [Core annotations](../../zipkin/src/main/java/zipkin/Constants.java#L186-L188),
-ex "sr", non-string annotations, and values longer than 256 characters
-are not written to the `all_annotations` SASI, as they aren't intended
+Note: annotations with values longer than 256 characters
+are not written to the `annotation_query` SASI, as they aren't intended
 for use in user queries.
 
 ### Time-To_live
@@ -66,10 +67,10 @@ retrieve a trace by ID for up to 7 days, but you can only search the last 3 days
 
 ### Compaction
 Time-series data is compacted using TimeWindowCompactionStrategy, a known improved over DateTieredCompactionStrategy. Data is
-optimised for queries with a single day. The penalty of reading multiple days is small, a few disk seeks, compared to the
+optimised for queries within a single day. The penalty of reading multiple days is small, a few disk seeks, compared to the
 otherwise overhead of reading a significantly larger amount of data.
 
 ### Benchmarking
-Benchmarking the new datamodel demonstrates a significant performance improvement on reads. How much of this translates to te
+Benchmarking the new datamodel demonstrates a significant performance improvement on reads. How much of this translates to the
 Zipkin UI is hard to tell due to the complexity of CassandraSpanConsumer and how searches are possible. Benchmarking stress
-profiles are found in traces-stress.yaml and trace_by_service_span-stress.yaml.
+profiles are found in traces-stress.yaml and trace_by_service_span-stress.yaml and span_by_service-stress.yaml.
