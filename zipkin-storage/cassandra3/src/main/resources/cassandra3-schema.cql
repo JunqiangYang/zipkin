@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS zipkin2_cassandra3.traces (
     duration            bigint,
     l_ep                Endpoint,
     l_service           text,
-    r_rp                Endpoint,
+    r_ep                Endpoint,
     annotations         list<frozen<annotation>>,
     tags                map<text,text>,
     shared              boolean,
