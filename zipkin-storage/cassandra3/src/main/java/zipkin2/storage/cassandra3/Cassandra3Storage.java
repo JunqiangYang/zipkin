@@ -217,7 +217,7 @@ public final class Cassandra3Storage extends StorageComponent {
 
   @Override public CheckResult check() {
     try {
-      session.get().execute(QueryBuilder.select("trace_id").from("traces").limit(1));
+      session.get().execute(QueryBuilder.select("trace_id").from("span").limit(1));
     } catch (RuntimeException e) {
       return CheckResult.failed(e);
     }
@@ -231,10 +231,10 @@ public final class Cassandra3Storage extends StorageComponent {
   /** Truncates all the column families, or throws on any failure. */
   @VisibleForTesting void clear() {
     for (String cf : ImmutableList.of(
-      Schema.TABLE_TRACES,
+      Schema.TABLE_SPAN,
       Schema.TABLE_TRACE_BY_SERVICE_SPAN,
       Schema.TABLE_SERVICE_SPANS,
-      Schema.TABLE_DEPENDENCIES
+      Schema.TABLE_DEPENDENCY
     )) {
       session.get().execute("TRUNCATE " + cf);
     }

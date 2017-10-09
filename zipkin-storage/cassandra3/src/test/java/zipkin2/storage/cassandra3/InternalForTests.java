@@ -14,17 +14,13 @@
 package zipkin2.storage.cassandra3;
 
 import com.datastax.driver.core.KeyspaceMetadata;
+import com.datastax.driver.core.LocalDate;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.Statement;
 import com.datastax.driver.core.policies.RetryPolicy;
+import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
-import java.nio.ByteBuffer;
-import java.util.Date;
 import java.util.List;
-import zipkin.Codec;
 import zipkin.DependencyLink;
-
-import static zipkin.storage.guava.GuavaStorageAdapters.guavaToAsync;
 
 public class InternalForTests {
 
@@ -34,15 +30,15 @@ public class InternalForTests {
 
   public static void writeDependencyLinks(Cassandra3Storage storage, List<DependencyLink> links,
     long midnightUTC) {
-
-    ByteBuffer thrift = ByteBuffer.wrap(Codec.THRIFT.writeDependencyLinks(links));
-
-    Date startFlooredToDay = new Date(midnightUTC);
-    Statement statement = QueryBuilder.insertInto(Schema.TABLE_DEPENDENCIES)
-      .value("day", startFlooredToDay)
-      .value("links", thrift);
-
-    storage.session().execute(statement);
+    for (DependencyLink link : links) {
+      Insert statement = QueryBuilder.insertInto(Schema.TABLE_DEPENDENCY)
+          .value("day", LocalDate.fromMillisSinceEpoch(midnightUTC))
+          .value("parent", link.parent)
+          .value("child", link.child)
+          .value("calls", link.callCount)
+          .value("errors", link.errorCount);
+      storage.session().execute(statement);
+    }
   }
 
   public static int indexFetchMultiplier(Cassandra3Storage storage) {

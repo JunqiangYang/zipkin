@@ -47,16 +47,6 @@ public class ITCassandra3Storage {
       return storage.storage;
     }
 
-    @Override @Test(expected = AssertionError.class) /* TODO */
-    public void getTrace_128() {
-      super.getTrace_128();
-    }
-
-    @Override @Test(expected = AssertionError.class) /* TODO */
-    public void searchingByAnnotationShouldFilterBeforeLimiting() {
-      super.searchingByAnnotationShouldFilterBeforeLimiting();
-    }
-
     @Override public void clear() throws IOException {
       InternalForTests.clear(cassandraStorage());
     }

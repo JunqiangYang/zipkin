@@ -4,7 +4,7 @@ CREATE TYPE IF NOT EXISTS zipkin2_cassandra3.endpoint (
     service      text,
     ipv4         inet,
     ipv6         inet,
-    port         smallint,
+    port         int,
 );
 
 CREATE TYPE IF NOT EXISTS zipkin2_cassandra3.annotation (
@@ -12,13 +12,13 @@ CREATE TYPE IF NOT EXISTS zipkin2_cassandra3.annotation (
     v  text,
 );
 
-CREATE TABLE IF NOT EXISTS zipkin2_cassandra3.traces (
+CREATE TABLE IF NOT EXISTS zipkin2_cassandra3.span (
     trace_id            text,
     ts_uuid             timeuuid,
     id                  text,
     ts                  bigint,
     span                text,
-    parent_id           bigint,
+    parent_id           text,
     duration            bigint,
     l_ep                Endpoint,
     l_service           text,
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS zipkin2_cassandra3.span_by_service (
     AND default_time_to_live =  259200
     AND comment = 'Secondary table for looking up span names by a service name.';
 
-CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.traces (annotation_query) USING 'org.apache.cassandra.index.sasi.SASIIndex'
+CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.span (annotation_query) USING 'org.apache.cassandra.index.sasi.SASIIndex'
    WITH OPTIONS = {
     'mode': 'CONTAINS',
     'analyzed': 'true',
@@ -66,14 +66,14 @@ CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.traces (annotation_query
     'case_sensitive': 'false'
    };
 
-CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.traces (l_service) USING 'org.apache.cassandra.index.sasi.SASIIndex'
+CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.span (l_service) USING 'org.apache.cassandra.index.sasi.SASIIndex'
    WITH OPTIONS = {'mode': 'PREFIX'};
 
 CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.trace_by_service_span (duration) USING 'org.apache.cassandra.index.sasi.SASIIndex'
    WITH OPTIONS = {'mode': 'PREFIX'};
 
 
-CREATE TABLE IF NOT EXISTS zipkin2_cassandra3.dependencies (
+CREATE TABLE IF NOT EXISTS zipkin2_cassandra3.dependency (
     day          date,
     parent       text,
     child        text,

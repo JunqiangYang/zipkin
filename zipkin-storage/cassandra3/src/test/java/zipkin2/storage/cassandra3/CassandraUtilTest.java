@@ -40,19 +40,6 @@ public class CassandraUtilTest {
   }
 
   @Test
-  public void annotationKeys_serviceNameRequired() {
-    thrown.expect(IllegalArgumentException.class);
-
-    CassandraUtil.annotationKeys(
-        QueryRequest.newBuilder()
-            .endTs(System.currentTimeMillis())
-            .limit(10)
-            .lookback(86400000L)
-            .parseAnnotationQuery("foo")
-            .build());
-  }
-
-  @Test
   public void annotationKeys() {
     assertThat(CassandraUtil.annotationKeys(
          QueryRequest.newBuilder()

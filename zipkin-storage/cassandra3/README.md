@@ -44,7 +44,7 @@ Indexing in CQL is simplified by SASI, for example, reducing the number
 of tables from 7 down to 4. SASI also moves some write-amplification from
 CassandraSpanConsumer into C*.
 
-CassandraSpanConsumer directly writes to the tables `traces`,
+CassandraSpanConsumer directly writes to the tables `span`,
 `trace_by_service_span` and `span_by_service`. The latter two
 amplify writes by a factor of the distinct service names in a span.
 Other amplification happens internally to C*, visible in the increase

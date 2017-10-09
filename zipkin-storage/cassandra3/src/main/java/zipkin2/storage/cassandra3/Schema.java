@@ -42,10 +42,10 @@ final class Schema {
   private static final Logger LOG = LoggerFactory.getLogger(Schema.class);
   public static final Charset UTF_8 = Charset.forName("UTF-8");
 
-  static final String TABLE_TRACES = "traces";
+  static final String TABLE_SPAN = "span";
   static final String TABLE_TRACE_BY_SERVICE_SPAN = "trace_by_service_span";
   static final String TABLE_SERVICE_SPANS = "span_by_service";
-  static final String TABLE_DEPENDENCIES = "dependencies";
+  static final String TABLE_DEPENDENCY = "dependency";
 
   static final String DEFAULT_KEYSPACE = "zipkin2_cassandra3";
   private static final String SCHEMA_RESOURCE = "/cassandra3-schema.cql";
@@ -70,7 +70,7 @@ final class Schema {
               "Do not define `local_dc` and use SimpleStrategy");
     }
     String compactionClass =
-        keyspaceMetadata.getTable("traces").getOptions().getCompaction().get("class");
+        keyspaceMetadata.getTable("span").getOptions().getCompaction().get("class");
 
     return new Metadata(compactionClass);
   }
@@ -98,7 +98,7 @@ final class Schema {
 
   static KeyspaceMetadata ensureExists(String keyspace, Session session) {
     KeyspaceMetadata result = session.getCluster().getMetadata().getKeyspace(keyspace);
-    if (result == null || result.getTable("traces") == null) {
+    if (result == null || result.getTable(Schema.TABLE_SPAN) == null) {
       LOG.info("Installing schema {}", SCHEMA_RESOURCE);
       applyCqlFile(keyspace, session, SCHEMA_RESOURCE);
       // refresh metadata since we've installed the schema

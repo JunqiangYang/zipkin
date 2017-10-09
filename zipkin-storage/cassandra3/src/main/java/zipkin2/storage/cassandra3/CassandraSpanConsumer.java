@@ -52,7 +52,7 @@ final class CassandraSpanConsumer implements SpanConsumer {
 
     insertSpan = session.prepare(
         QueryBuilder
-            .insertInto(Schema.TABLE_TRACES)
+            .insertInto(Schema.TABLE_SPAN)
             .value("trace_id", QueryBuilder.bindMarker("trace_id"))
             .value("ts_uuid", QueryBuilder.bindMarker("ts_uuid"))
             .value("id", QueryBuilder.bindMarker("id"))

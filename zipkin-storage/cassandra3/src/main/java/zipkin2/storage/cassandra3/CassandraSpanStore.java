@@ -15,6 +15,7 @@ package zipkin2.storage.cassandra3;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.KeyspaceMetadata;
+import com.datastax.driver.core.LocalDate;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
@@ -65,8 +66,9 @@ import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transformAsync;
 import static zipkin.internal.Util.getDays;
+import static zipkin2.storage.cassandra3.Schema.TABLE_DEPENDENCY;
 import static zipkin2.storage.cassandra3.Schema.TABLE_SERVICE_SPANS;
-import static zipkin2.storage.cassandra3.Schema.TABLE_TRACES;
+import static zipkin2.storage.cassandra3.Schema.TABLE_SPAN;
 import static zipkin2.storage.cassandra3.Schema.TABLE_TRACE_BY_SERVICE_SPAN;
 
 final class CassandraSpanStore implements SpanStore {
@@ -103,13 +105,13 @@ final class CassandraSpanStore implements SpanStore {
         QueryBuilder.select(
                 "trace_id", "id", "ts", "span", "parent_id",
                 "duration", "l_ep", "r_ep", "annotations", "tags", "shared")
-            .from(TABLE_TRACES)
+            .from(TABLE_SPAN)
             .where(QueryBuilder.in("trace_id", QueryBuilder.bindMarker("trace_id")))
             .limit(QueryBuilder.bindMarker("limit_")));
 
     selectDependencies = session.prepare(
         QueryBuilder.select("parent", "child", "errors", "calls")
-            .from(Schema.TABLE_DEPENDENCIES)
+            .from(TABLE_DEPENDENCY)
             .where(QueryBuilder.in("day", QueryBuilder.bindMarker("days"))));
 
     selectServiceNames = session.prepare(
@@ -147,7 +149,7 @@ final class CassandraSpanStore implements SpanStore {
 
     selectTraceIdsByAnnotation = session.prepare(
         QueryBuilder.select("ts", "trace_id")
-            .from(TABLE_TRACES)
+            .from(TABLE_SPAN)
             .where(QueryBuilder.eq("l_service", QueryBuilder.bindMarker("l_service")))
             .and(QueryBuilder.like("annotation_query", QueryBuilder.bindMarker("annotation_query")))
             .and(QueryBuilder.gte("ts_uuid", QueryBuilder.bindMarker("start_ts")))
@@ -253,7 +255,7 @@ final class CassandraSpanStore implements SpanStore {
       traceIds = Futures.transform(allAsList(futureKeySetsToIntersect), CassandraUtil.intersectKeySets());
       // @xxx the sorting by timestamp desc is broken here^
     }
-      
+
     return new ListenableFutureCall<List<List<Span>>>() {
       @Override protected ListenableFuture<List<List<Span>>> newFuture() {
         return transformAsync(traceIds, new AsyncFunction<Collection<String>, List<List<Span>>>() {
@@ -265,7 +267,7 @@ final class CassandraSpanStore implements SpanStore {
             return Futures.transform(
                     getSpansByTraceIds(set, maxTraceCols),
                     (List<Span> input) -> {
-                      
+
                 List<List<Span>> traces = groupByTraceId(input, strictTraceId);
                 // Due to tokenization of the trace ID, our matches are imprecise on Span.traceIdHigh
                 for (Iterator<List<Span>> trace = traces.iterator(); trace.hasNext(); ) {
@@ -333,10 +335,15 @@ final class CassandraSpanStore implements SpanStore {
 
   @Override public Call<List<DependencyLink>> getDependencies(long endTs, long lookback) {
     List<Date> days = getDays(endTs, lookback);
+    if (days.isEmpty()) return Call.emptyList();
+    List<LocalDate> dates = new ArrayList<>();
+    for (Date day : days) {
+      dates.add(LocalDate.fromMillisSinceEpoch(day.getTime()));
+    }
     try {
       BoundStatement bound = CassandraUtil
               .bindWithName(selectDependencies, "select-dependencies")
-              .setList("days", days);
+              .setList("days", dates);
 
       return new ListenableFutureCall<List<DependencyLink>>() {
         @Override protected ListenableFuture<List<DependencyLink>> newFuture() {
@@ -381,7 +388,7 @@ final class CassandraSpanStore implements SpanStore {
     }
 
     try {
-      Statement bound = CassandraUtil.bindWithName(selectTraces, "select-traces")
+      Statement bound = CassandraUtil.bindWithName(selectTraces, "select-span")
           .setSet("trace_id", traceIds)
           .setInt("limit_", limit);
 
@@ -471,7 +478,7 @@ final class CassandraSpanStore implements SpanStore {
     try {
       BoundStatement bound =
           CassandraUtil.bindWithName(selectTraceIdsByAnnotation, "select-trace-ids-by-annotation")
-              .setString("local_service", request.serviceName())
+              .setString("l_service", request.serviceName())
               .setString("annotation_query", "%" + annotationKey + "%")
               .setUUID("start_ts", UUIDs.startOf(startTsMillis))
               .setUUID("end_ts", UUIDs.endOf(endTsMillis))

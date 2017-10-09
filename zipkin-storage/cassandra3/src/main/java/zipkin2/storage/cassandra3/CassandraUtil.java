@@ -37,9 +37,9 @@ import static zipkin.internal.Util.sortedList;
 final class CassandraUtil {
 
   /**
-   * Zipkin's {@link QueryRequest#binaryAnnotations} are equals match. Not all binary annotations
-   * are lookup keys. For example, sql query isn't something that is likely to be looked up by value
-   * and indexing that could add a potentially kilobyte partition key on {@link Schema#TABLE_TRACES}
+   * Zipkin's {@link QueryRequest#annotationQuery()} are equals match. Not all tag keys are lookup
+   * keys. For example, {@code sql.query} isn't something that is likely to be looked up by value and
+   * indexing that could add a potentially kilobyte partition key on {@link Schema#TABLE_SPAN}
    */
   static final int LONGEST_VALUE_TO_INDEX = 256;
 
@@ -55,7 +55,7 @@ final class CassandraUtil {
   /**
    * Returns keys that concatenate the serviceName associated with an annotation or a tags.
    *
-   * @see QueryRequest#annotations
+   * @see QueryRequest#annotationQuery()
    */
   static Set<String> annotationKeys(Span span) {
     Set<String> annotationKeys = new LinkedHashSet<>();
@@ -63,7 +63,7 @@ final class CassandraUtil {
 
     for (Map.Entry<String,String> tag : span.tags().entrySet()) {
       if (tag.getValue().length() > LONGEST_VALUE_TO_INDEX) continue;
-      
+
       // Using colon to allow allow annotation query search to work on key
       annotationKeys.add(tag.getKey());
       annotationKeys.add(tag.getKey() + ":" + tag.getValue());
@@ -72,7 +72,6 @@ final class CassandraUtil {
   }
 
   static List<String> annotationKeys(QueryRequest request) {
-    checkArgument(request.serviceName() != null, "serviceName needed with annotation query");
     Set<String> annotationKeys = new LinkedHashSet<>();
     for (Map.Entry<String, String> e : request.annotationQuery().entrySet()) {
       if (e.getValue().isEmpty()) {
@@ -129,7 +128,7 @@ final class CassandraUtil {
     @Override public Collection<String> apply(@Nullable Map<String, Long> map) {
       // timestamps can collide, so we need to add some random digits on end before using them as keys
       SortedMap<BigInteger, String> sorted = new TreeMap<>(Collections.reverseOrder());
-      map.entrySet().forEach(e -> 
+      map.entrySet().forEach(e ->
         sorted.put(
             BigInteger.valueOf(e.getValue()).multiply(OFFSET).add(BigInteger.valueOf(RAND.nextInt())),
             e.getKey())
