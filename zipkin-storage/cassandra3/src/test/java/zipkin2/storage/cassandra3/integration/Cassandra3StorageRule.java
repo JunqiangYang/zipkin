@@ -22,46 +22,62 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import org.junit.AssumptionViolatedException;
-import org.junit.rules.TestRule;
-import org.junit.runner.Description;
-import org.junit.runners.model.Statement;
+import org.junit.rules.ExternalResource;
 import org.rnorth.ducttape.unreliables.Unreliables;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.traits.LinkableContainer;
 import zipkin2.CheckResult;
-import zipkin.internal.LazyCloseable;
 import zipkin2.storage.cassandra3.Cassandra3Storage;
 import zipkin2.storage.cassandra3.InternalForTests;
 
-class LazyCassandra3Storage extends LazyCloseable<Cassandra3Storage> implements TestRule {
-
+class Cassandra3StorageRule extends ExternalResource {
+  static final Logger LOGGER = LoggerFactory.getLogger(Cassandra3StorageRule.class);
+  static final int CASSANDRA_PORT = 9042;
   final String image;
   final String keyspace;
+  CassandraContainer container;
+  Cassandra3Storage storage;
 
-  GenericContainer container;
-
-  LazyCassandra3Storage(String image, String keyspace) {
+  Cassandra3StorageRule(String image, String keyspace) {
     this.image = image;
     this.keyspace = keyspace;
   }
 
-  @Override protected Cassandra3Storage compute() {
+  @Override
+  protected void before() throws Throwable {
     try {
-      container = new CassandraContainer(image).withExposedPorts(9042);
+      LOGGER.info("Starting docker image " + image);
+      container = new CassandraContainer(image).withExposedPorts(CASSANDRA_PORT);
       container.start();
-      System.out.println("Will use TestContainers Cassandra instance");
-    } catch (Exception e) {
-      // Ignore
+    } catch (RuntimeException e) {
+      LOGGER.warn("Couldn't start docker image " + image + ": " + e.getMessage(), e);
     }
 
-    Cassandra3Storage result = computeStorageBuilder().build();
-    CheckResult check = result.check();
-    if (check.ok()) return result;
-    throw new AssumptionViolatedException(check.error().getMessage(), check.error());
+    try {
+      this.storage = tryToInitializeStorage();
+    } catch (RuntimeException| Error e) {
+      if (container == null) throw e;
+      LOGGER.warn("Couldn't connect to docker image " + image + ": " + e.getMessage(), e);
+      container.stop();
+      container = null; // try with local connection instead
+      this.storage = tryToInitializeStorage();
+    }
   }
 
-  private Cassandra3Storage.Builder computeStorageBuilder() {
+  Cassandra3Storage tryToInitializeStorage() {
+    Cassandra3Storage result = computeStorageBuilder().build();
+
+    CheckResult check = result.check();
+    if (!check.ok()) {
+      throw new AssumptionViolatedException(check.error().getMessage(), check.error());
+    }
+    return result;
+  }
+
+  Cassandra3Storage.Builder computeStorageBuilder() {
     return Cassandra3Storage.newBuilder()
       .contactPoints(contactPoints())
       .ensureSchema(true)
@@ -71,38 +87,27 @@ class LazyCassandra3Storage extends LazyCloseable<Cassandra3Storage> implements 
 
   private String contactPoints() {
     if (container != null && container.isRunning()) {
-      return container.getContainerIpAddress() + ":" + container.getMappedPort(9042);
+      return container.getContainerIpAddress() + ":" + container.getMappedPort(CASSANDRA_PORT);
     } else {
-      return "127.0.0.1:9042";
+      return "127.0.0.1:" + CASSANDRA_PORT;
     }
   }
 
-  @Override public void close() {
+  @Override
+  protected void after() {
     try {
-      Cassandra3Storage storage = maybeNull();
       if (storage != null) storage.close();
-    } catch (IOException ioe) {
-      // Ignore
+    } catch (IOException e) {
+      LOGGER.warn("error closing storage " + e.getMessage(), e);
     } finally {
-      if (container != null) container.stop();
+      if (container != null) {
+        LOGGER.info("Stopping docker image " + image);
+        container.stop();
+      }
     }
   }
 
-  @Override public Statement apply(Statement base, Description description) {
-    return new Statement() {
-      @Override
-      public void evaluate() throws Throwable {
-        get();
-        try {
-          base.evaluate();
-        } finally {
-          close();
-        }
-      }
-    };
-  }
-
-  private static class CassandraContainer extends GenericContainer<CassandraContainer> implements
+  static final class CassandraContainer extends GenericContainer<CassandraContainer> implements
     LinkableContainer {
 
     CassandraContainer(String image) {

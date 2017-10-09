@@ -29,12 +29,12 @@ import zipkin2.storage.cassandra3.InternalForTests;
 public class ITCassandra3Storage {
 
   @ClassRule
-  public static LazyCassandra3Storage storage =
-    new LazyCassandra3Storage("openzipkin/zipkin-cassandra:1.31.1", "test_zipkin3");
+  public static Cassandra3StorageRule storage =
+    new Cassandra3StorageRule("openzipkin/zipkin-cassandra:1.31.1", "test_zipkin3");
 
   public static class DependenciesTest extends CassandraDependenciesTest {
     @Override protected Cassandra3Storage cassandraStorage() {
-      return storage.get();
+      return storage.storage;
     }
 
     @Override public void clear() {
@@ -44,7 +44,7 @@ public class ITCassandra3Storage {
 
   public static class SpanStoreTest extends CassandraSpanStoreTest {
     @Override protected Cassandra3Storage cassandraStorage() {
-      return storage.get();
+      return storage.storage;
     }
 
     @Override @Test(expected = AssertionError.class) /* TODO */
@@ -64,7 +64,7 @@ public class ITCassandra3Storage {
 
   public static class SpanConsumerTest extends CassandraSpanConsumerTest {
     @Override protected Cassandra3Storage storage() {
-      return storage.get();
+      return storage.storage;
     }
   }
 
@@ -77,14 +77,14 @@ public class ITCassandra3Storage {
     }
 
     @Override protected Session session() {
-      return storage.get().session();
+      return storage.storage.session();
     }
   }
 
   @Ignore("TODO: get this working or explain why not")
   public static class StrictTraceIdFalseTest extends CassandraStrictTraceIdFalseTest {
     @Override protected Cassandra3Storage cassandraStorage() {
-      return storage.get();
+      return storage.storage;
     }
   }
 }
