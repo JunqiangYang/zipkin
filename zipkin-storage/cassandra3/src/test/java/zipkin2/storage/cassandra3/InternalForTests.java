@@ -16,7 +16,6 @@ package zipkin2.storage.cassandra3;
 import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.LocalDate;
 import com.datastax.driver.core.Session;
-import com.datastax.driver.core.policies.RetryPolicy;
 import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import java.util.List;
@@ -24,10 +23,6 @@ import zipkin.DependencyLink;
 import zipkin2.storage.SpanConsumer;
 
 public class InternalForTests {
-
-  public static void clear(Cassandra3Storage storage) {
-    storage.clear();
-  }
 
   public static void writeDependencyLinks(Cassandra3Storage storage, List<DependencyLink> links,
     long midnightUTC) {
@@ -58,15 +53,7 @@ public class InternalForTests {
     return Schema.ensureExists(keyspace, session);
   }
 
-  public static RetryPolicy zipkinRetryPolicy() {
-    return ZipkinRetryPolicy.INSTANCE;
-  }
-
   private static long rowCount(Cassandra3Storage storage, String table) {
     return storage.session().execute("SELECT COUNT(*) from " + table).one().getLong(0);
-  }
-
-  public static Session session(Cassandra3Storage storage) {
-    return storage.session();
   }
 }

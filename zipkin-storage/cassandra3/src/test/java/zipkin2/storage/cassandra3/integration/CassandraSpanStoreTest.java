@@ -36,10 +36,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 abstract class CassandraSpanStoreTest extends SpanStoreTest {
 
-  protected abstract Cassandra3Storage cassandraStorage();
+  protected abstract Cassandra3Storage v2Storage();
 
   @Override protected final StorageComponent storage() {
-    return V2StorageComponent.create(cassandraStorage());
+    return V2StorageComponent.create(v2Storage());
   }
 
   /** Cassandra indexing is performed separately, allowing the raw span to be stored unaltered. */
@@ -80,7 +80,7 @@ abstract class CassandraSpanStoreTest extends SpanStoreTest {
 
     // Index ends up containing more rows than services * trace count, and cannot be de-duped
     // in a server-side query.
-    assertThat(InternalForTests.rowCountForTraceByServiceSpan(cassandraStorage()))
+    assertThat(InternalForTests.rowCountForTraceByServiceSpan(v2Storage()))
         .isGreaterThan(traceCount * store().getServiceNames().size());
 
     // Implementation over-fetches on the index to allow the user to receive unsurprising results.
@@ -97,7 +97,7 @@ abstract class CassandraSpanStoreTest extends SpanStoreTest {
     Endpoint endpoint = TestObjects.LOTS_OF_SPANS[0].annotations.get(0).endpoint;
     BinaryAnnotation ba = BinaryAnnotation.create("host.name", "host1", endpoint);
 
-    int nbTraceFetched = queryLimit * InternalForTests.indexFetchMultiplier(cassandraStorage());
+    int nbTraceFetched = queryLimit * InternalForTests.indexFetchMultiplier(v2Storage());
     IntStream.range(0, nbTraceFetched).forEach(i ->
             accept(TestObjects.LOTS_OF_SPANS[i++].toBuilder().timestamp(now - (i * 1000)).build())
     );

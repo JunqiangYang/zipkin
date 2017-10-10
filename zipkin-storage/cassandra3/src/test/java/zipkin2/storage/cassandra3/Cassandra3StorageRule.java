@@ -11,7 +11,7 @@
  * or implied. See the License for the specific language governing permissions and limitations under
  * the License.
  */
-package zipkin2.storage.cassandra3.integration;
+package zipkin2.storage.cassandra3;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.HostDistance;
@@ -29,10 +29,8 @@ import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.traits.LinkableContainer;
 import zipkin2.CheckResult;
-import zipkin2.storage.cassandra3.Cassandra3Storage;
-import zipkin2.storage.cassandra3.InternalForTests;
 
-class Cassandra3StorageRule extends ExternalResource {
+public class Cassandra3StorageRule extends ExternalResource {
   static final Logger LOGGER = LoggerFactory.getLogger(Cassandra3StorageRule.class);
   static final int CASSANDRA_PORT = 9042;
   final String image;
@@ -40,9 +38,17 @@ class Cassandra3StorageRule extends ExternalResource {
   CassandraContainer container;
   Cassandra3Storage storage;
 
-  Cassandra3StorageRule(String image, String keyspace) {
+  public Cassandra3StorageRule(String image, String keyspace) {
     this.image = image;
     this.keyspace = keyspace;
+  }
+
+  public void clear() {
+    storage.clear();
+  }
+
+  public Session session() {
+    return storage.session();
   }
 
   @Override
@@ -57,7 +63,7 @@ class Cassandra3StorageRule extends ExternalResource {
 
     try {
       this.storage = tryToInitializeStorage();
-    } catch (RuntimeException| Error e) {
+    } catch (RuntimeException | Error e) {
       if (container == null) throw e;
       LOGGER.warn("Couldn't connect to docker image " + image + ": " + e.getMessage(), e);
       container.stop();
@@ -80,7 +86,12 @@ class Cassandra3StorageRule extends ExternalResource {
     return Cassandra3Storage.newBuilder()
       .contactPoints(contactPoints())
       .ensureSchema(true)
-      .maxConnections(2)
+      .poolingOptions(new PoolingOptions()
+        // make sure we don't overrun the cluster, which is usually a small docker container
+        .setMaxConnectionsPerHost(HostDistance.LOCAL, 2)
+        .setPoolTimeoutMillis(20_000)
+        .setMaxQueueSize(10_000) // overFetchesToCompensateForDuplicateIndexData writes 2K spans
+      )
       .keyspace(keyspace);
   }
 
@@ -104,6 +115,10 @@ class Cassandra3StorageRule extends ExternalResource {
         container.stop();
       }
     }
+  }
+
+  public Cassandra3Storage get() {
+    return storage;
   }
 
   static final class CassandraContainer extends GenericContainer<CassandraContainer> implements
@@ -133,7 +148,7 @@ class Cassandra3StorageRule extends ExternalResource {
 
       return Cluster.builder()
         .addContactPointsWithPorts(address)
-        .withRetryPolicy(InternalForTests.zipkinRetryPolicy())
+        .withRetryPolicy(ZipkinRetryPolicy.INSTANCE)
         .withPoolingOptions(new PoolingOptions().setMaxConnectionsPerHost(HostDistance.LOCAL, 1))
         .build();
     }

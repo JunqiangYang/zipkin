@@ -24,11 +24,11 @@ import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.slf4j.LoggerFactory;
 import zipkin.internal.Util;
-import zipkin2.storage.cassandra3.Cassandra3Storage;
-import zipkin2.storage.cassandra3.InternalForTests;
 import zipkin2.Span;
 import zipkin2.TestObjects;
 import zipkin2.storage.SpanConsumer;
+import zipkin2.storage.cassandra3.Cassandra3Storage;
+import zipkin2.storage.cassandra3.InternalForTests;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,9 +45,10 @@ abstract class CassandraSpanConsumerTest {
 
   protected abstract Cassandra3Storage storage();
 
+  @Before public abstract void clear();
+
   @Before
-  public void clear() {
-    InternalForTests.clear(storage());
+  public void setup() {
     Logger root = (Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
     when(mockAppender.getName()).thenReturn(CassandraSpanConsumerTest.class.getName());
     root.addAppender(mockAppender);

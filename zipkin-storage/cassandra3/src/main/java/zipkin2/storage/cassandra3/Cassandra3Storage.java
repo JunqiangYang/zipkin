@@ -13,6 +13,8 @@
  */
 package zipkin2.storage.cassandra3;
 
+import com.datastax.driver.core.HostDistance;
+import com.datastax.driver.core.PoolingOptions;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.google.auto.value.AutoValue;
@@ -51,7 +53,8 @@ public abstract class Cassandra3Storage extends StorageComponent {
       .strictTraceId(true)
       .keyspace(Schema.DEFAULT_KEYSPACE)
       .contactPoints("localhost")
-      .maxConnections(8)
+      .poolingOptions(new PoolingOptions().setMaxConnectionsPerHost(
+        HostDistance.LOCAL, 8))
       .ensureSchema(true)
       .useSsl(false)
       .maxTraceCols(100000)
@@ -79,7 +82,14 @@ public abstract class Cassandra3Storage extends StorageComponent {
     public abstract Builder localDc(@Nullable String localDc);
 
     /** Max pooled connections per datacenter-local host. Defaults to 8 */
-    public abstract Builder maxConnections(int maxConnections);
+    public final Builder maxConnections(int maxConnections) {
+      poolingOptions().setMaxConnectionsPerHost(HostDistance.LOCAL, maxConnections);
+      return this;
+    }
+
+    abstract PoolingOptions poolingOptions(); // exposed to customize
+
+    abstract Builder poolingOptions(PoolingOptions poolingOptions);
 
     /**
      * Ensures that schema exists, if enabled tries to execute script io.zipkin:zipkin-cassandra-core/cassandra-schema-cql3.txt.
@@ -127,7 +137,7 @@ public abstract class Cassandra3Storage extends StorageComponent {
 
   abstract int maxTraceCols();
   abstract String contactPoints();
-  abstract int maxConnections();
+  abstract PoolingOptions poolingOptions();
   @Nullable abstract String localDc();
   @Nullable abstract String username();
   @Nullable abstract String password();

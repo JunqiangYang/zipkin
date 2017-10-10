@@ -14,15 +14,16 @@
 package zipkin2.storage.cassandra3.integration;
 
 import com.datastax.driver.core.Session;
-import java.io.IOException;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
+import zipkin2.storage.StorageComponent;
 import zipkin2.storage.cassandra3.Cassandra3Storage;
-import zipkin2.storage.cassandra3.InternalForTests;
+import zipkin2.storage.cassandra3.Cassandra3StorageRule;
 
 @RunWith(Enclosed.class)
 public class ITCassandra3Storage {
@@ -32,28 +33,32 @@ public class ITCassandra3Storage {
     new Cassandra3StorageRule("openzipkin/zipkin-cassandra:1.31.1", "test_zipkin3");
 
   public static class DependenciesTest extends CassandraDependenciesTest {
-    @Override protected Cassandra3Storage cassandraStorage() {
-      return storage.storage;
+    @Override protected StorageComponent v2Storage() {
+      return storage.get();
     }
 
     @Override public void clear() {
-      InternalForTests.clear(cassandraStorage());
+      storage.clear();
     }
   }
 
   public static class SpanStoreTest extends CassandraSpanStoreTest {
-    @Override protected Cassandra3Storage cassandraStorage() {
-      return storage.storage;
+    @Override protected Cassandra3Storage v2Storage() {
+      return storage.get();
     }
 
-    @Override public void clear() throws IOException {
-      InternalForTests.clear(cassandraStorage());
+    @Override public void clear() {
+      storage.clear();
     }
   }
 
   public static class SpanConsumerTest extends CassandraSpanConsumerTest {
     @Override protected Cassandra3Storage storage() {
-      return storage.storage;
+      return storage.get();
+    }
+
+    @Before public void clear() {
+      storage.clear();
     }
   }
 
@@ -66,14 +71,17 @@ public class ITCassandra3Storage {
     }
 
     @Override protected Session session() {
-      return InternalForTests.session(storage.storage);
+      return storage.session();
     }
   }
 
-  @Ignore("TODO: get this working or explain why not")
   public static class StrictTraceIdFalseTest extends CassandraStrictTraceIdFalseTest {
-    @Override protected Cassandra3Storage cassandraStorage() {
-      return storage.storage;
+    @Override protected StorageComponent v2Storage() {
+      return storage.get();
+    }
+
+    @Override public void clear() {
+      storage.clear();
     }
   }
 }

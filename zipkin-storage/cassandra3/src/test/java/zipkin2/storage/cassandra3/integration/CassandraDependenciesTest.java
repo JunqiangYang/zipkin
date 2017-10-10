@@ -31,10 +31,10 @@ import static zipkin.internal.Util.midnightUTC;
 
 abstract class CassandraDependenciesTest extends DependenciesTest {
 
-  protected abstract Cassandra3Storage cassandraStorage();
+  protected abstract zipkin2.storage.StorageComponent v2Storage();
 
   @Override protected final StorageComponent storage() {
-    return V2StorageComponent.create(cassandraStorage());
+    return V2StorageComponent.create(v2Storage());
   }
 
   /**
@@ -52,6 +52,6 @@ abstract class CassandraDependenciesTest extends DependenciesTest {
 
     // This gets or derives a timestamp from the spans
     long midnight = midnightUTC(guessTimestamp(MergeById.apply(spans).get(0)) / 1000);
-    InternalForTests.writeDependencyLinks(cassandraStorage(), links, midnight);
+    InternalForTests.writeDependencyLinks((Cassandra3Storage) v2Storage(), links, midnight);
   }
 }

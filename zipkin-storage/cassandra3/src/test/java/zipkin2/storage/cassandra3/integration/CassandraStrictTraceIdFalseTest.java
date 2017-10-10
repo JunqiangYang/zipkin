@@ -19,28 +19,22 @@ import org.junit.Test;
 import zipkin.Span;
 import zipkin.TestObjects;
 import zipkin.internal.V2StorageComponent;
-import zipkin.storage.StrictTraceIdFalseTest;
 import zipkin.storage.StorageComponent;
-import zipkin2.storage.cassandra3.Cassandra3Storage;
-import zipkin2.storage.cassandra3.InternalForTests;
+import zipkin.storage.StrictTraceIdFalseTest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 abstract class CassandraStrictTraceIdFalseTest extends StrictTraceIdFalseTest {
 
-  protected abstract Cassandra3Storage cassandraStorage();
+  protected abstract zipkin2.storage.StorageComponent v2Storage();
 
   @Override protected final StorageComponent storage() {
-    return V2StorageComponent.create(cassandraStorage());
+    return V2StorageComponent.create(v2Storage());
   }
 
   public CassandraStrictTraceIdFalseTest() {
     // check everything is ok
     storage().check();
-  }
-
-  @Override public void clear() {
-    InternalForTests.clear(cassandraStorage());
   }
 
   /**
