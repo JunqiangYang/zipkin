@@ -51,6 +51,10 @@ columnspec:
     size: uniform(5..20)
     population: uniform(1..100)
 
+  - name: parent_id
+    size: uniform(5..20)
+    population: uniform(1..100)
+
   - name: duration
     size: fixed(12)
     population: uniform(1..10k)

@@ -1,14 +1,14 @@
 CREATE KEYSPACE IF NOT EXISTS stress_zipkin2_cassandra3 WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'};
 
-//-- same schema but remove all UDTs (as cassandra-stress doesn't support them)
+//-- same schema but remove all UDTs and collections (as cassandra-stress doesn't support them)
 
-CREATE TABLE IF NOT EXISTS stress_zipkin2_cassandra3.traces (
+CREATE TABLE IF NOT EXISTS stress_zipkin2_cassandra3.span (
     trace_id            text,
     ts_uuid             timeuuid,
     id                  text,
     ts                  bigint,
     span                text,
-    parent_id           bigint,
+    parent_id           text,
     duration            bigint,
     l_service           text,
     shared              boolean,
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS stress_zipkin2_cassandra3.trace_by_service_span (
     span          text,             //-- span name, or blank for queries without span name
     bucket        int,              //-- time bucket, calculated as ts/interval (in microseconds), for some pre-configured interval like 1 day.
     ts            timeuuid,         //-- start timestamp of the span, truncated to millisecond precision
-    trace_id      bigint,           //-- trace ID
+    trace_id      text,             //-- trace ID
     duration      bigint,           //-- span duration, in microseconds
     PRIMARY KEY ((service, span, bucket), ts)
 )
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS stress_zipkin2_cassandra3.span_by_service (
     WITH compaction = {'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy', 'unchecked_tombstone_compaction': 'true', 'tombstone_threshold': '0.2'}
     AND default_time_to_live =  259200;
 
-CREATE CUSTOM INDEX IF NOT EXISTS ON stress_zipkin2_cassandra3.traces (annotation_query) USING 'org.apache.cassandra.index.sasi.SASIIndex'
+CREATE CUSTOM INDEX IF NOT EXISTS ON stress_zipkin2_cassandra3.span (annotation_query) USING 'org.apache.cassandra.index.sasi.SASIIndex'
    WITH OPTIONS = {
     'mode': 'CONTAINS',
     'analyzed': 'true',
@@ -49,7 +49,7 @@ CREATE CUSTOM INDEX IF NOT EXISTS ON stress_zipkin2_cassandra3.traces (annotatio
     'case_sensitive': 'false'
    };
 
-CREATE CUSTOM INDEX IF NOT EXISTS ON zipkin2_cassandra3.traces (l_service) USING 'org.apache.cassandra.index.sasi.SASIIndex'
+CREATE CUSTOM INDEX IF NOT EXISTS ON stress_zipkin2_cassandra3.span (l_service) USING 'org.apache.cassandra.index.sasi.SASIIndex'
    WITH OPTIONS = {'mode': 'PREFIX'};
 
 CREATE CUSTOM INDEX IF NOT EXISTS ON stress_zipkin2_cassandra3.trace_by_service_span (duration) USING 'org.apache.cassandra.index.sasi.SASIIndex'
