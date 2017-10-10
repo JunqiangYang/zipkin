@@ -53,8 +53,8 @@ public abstract class Cassandra3Storage extends StorageComponent {
       .strictTraceId(true)
       .keyspace(Schema.DEFAULT_KEYSPACE)
       .contactPoints("localhost")
-      .poolingOptions(new PoolingOptions().setMaxConnectionsPerHost(
-        HostDistance.LOCAL, 8))
+      // Zipkin collectors can create out a lot of async requests in bursts
+      .poolingOptions(new PoolingOptions().setMaxQueueSize(40960).setPoolTimeoutMillis(60000))
       .ensureSchema(true)
       .useSsl(false)
       .maxTraceCols(100000)

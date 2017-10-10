@@ -85,13 +85,6 @@ public class Cassandra3StorageRule extends ExternalResource {
   Cassandra3Storage.Builder computeStorageBuilder() {
     return Cassandra3Storage.newBuilder()
       .contactPoints(contactPoints())
-      .ensureSchema(true)
-      .poolingOptions(new PoolingOptions()
-        // CassandraSpanStoreTest.overFetchesToCompensateForDuplicateIndexData writes 2K spans
-        .setMaxConnectionsPerHost(HostDistance.LOCAL, 1024)
-        .setPoolTimeoutMillis(20_000)
-        .setMaxQueueSize(4096)
-      )
       .keyspace(keyspace);
   }
 
