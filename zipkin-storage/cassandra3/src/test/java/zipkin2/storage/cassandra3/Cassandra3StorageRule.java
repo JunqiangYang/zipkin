@@ -87,10 +87,10 @@ public class Cassandra3StorageRule extends ExternalResource {
       .contactPoints(contactPoints())
       .ensureSchema(true)
       .poolingOptions(new PoolingOptions()
-        // make sure we don't overrun the cluster, which is usually a small docker container
-        .setMaxConnectionsPerHost(HostDistance.LOCAL, 2)
+        // CassandraSpanStoreTest.overFetchesToCompensateForDuplicateIndexData writes 2K spans
+        .setMaxConnectionsPerHost(HostDistance.LOCAL, 1024)
         .setPoolTimeoutMillis(20_000)
-        .setMaxQueueSize(10_000) // overFetchesToCompensateForDuplicateIndexData writes 2K spans
+        .setMaxQueueSize(4096)
       )
       .keyspace(keyspace);
   }

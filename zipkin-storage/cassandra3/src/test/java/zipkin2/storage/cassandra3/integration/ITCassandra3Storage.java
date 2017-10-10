@@ -16,7 +16,6 @@ package zipkin2.storage.cassandra3.integration;
 import com.datastax.driver.core.Session;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TestName;
