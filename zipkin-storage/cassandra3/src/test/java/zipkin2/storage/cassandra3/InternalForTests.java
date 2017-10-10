@@ -21,6 +21,7 @@ import com.datastax.driver.core.querybuilder.Insert;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
 import java.util.List;
 import zipkin.DependencyLink;
+import zipkin2.storage.SpanConsumer;
 
 public class InternalForTests {
 
@@ -42,15 +43,15 @@ public class InternalForTests {
   }
 
   public static int indexFetchMultiplier(Cassandra3Storage storage) {
-    return storage.indexFetchMultiplier;
+    return storage.indexFetchMultiplier();
   }
 
   public static long rowCountForTraceByServiceSpan(Cassandra3Storage storage) {
     return rowCount(storage, Schema.TABLE_TRACE_BY_SERVICE_SPAN);
   }
 
-  public static CassandraSpanConsumer withoutStrictTraceId(Cassandra3Storage storage) {
-    return new CassandraSpanConsumer(storage.session(), false);
+  public static SpanConsumer withoutStrictTraceId(Cassandra3Storage storage) {
+    return storage.toBuilder().strictTraceId(false).build().spanConsumer();
   }
 
   public static KeyspaceMetadata ensureExists(String keyspace, Session session) {
@@ -63,5 +64,9 @@ public class InternalForTests {
 
   private static long rowCount(Cassandra3Storage storage, String table) {
     return storage.session().execute("SELECT COUNT(*) from " + table).one().getLong(0);
+  }
+
+  public static Session session(Cassandra3Storage storage) {
+    return storage.session();
   }
 }

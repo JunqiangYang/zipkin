@@ -41,8 +41,9 @@
     </dependency>
 
     <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>zipkin-guava</artifactId>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
     </dependency>
 
     <dependency>
@@ -59,6 +60,13 @@
       <groupId>io.zipkin.zipkin2</groupId>
       <artifactId>zipkin</artifactId>
       <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- add v1 dependency for integration tests -->
+    <dependency>
+      <groupId>io.zipkin.java</groupId>
+      <artifactId>zipkin</artifactId>
       <scope>test</scope>
     </dependency>
 

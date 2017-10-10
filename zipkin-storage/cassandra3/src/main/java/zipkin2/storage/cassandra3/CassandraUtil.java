@@ -14,10 +14,13 @@
 package zipkin2.storage.cassandra3;
 
 import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.LocalDate;
 import com.datastax.driver.core.PreparedStatement;
 import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -26,15 +29,15 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TimeZone;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import zipkin2.Span;
 import zipkin2.storage.QueryRequest;
 
-import static zipkin.internal.Util.checkArgument;
-import static zipkin.internal.Util.sortedList;
-
 final class CassandraUtil {
+  static final TimeZone UTC = TimeZone.getTimeZone("UTC");
 
   /**
    * Zipkin's {@link QueryRequest#annotationQuery()} are equals match. Not all tag keys are lookup
@@ -80,7 +83,7 @@ final class CassandraUtil {
         annotationKeys.add(e.getKey() + ":" + e.getValue());
       }
     }
-    return sortedList(annotationKeys);
+    return new ArrayList<>(annotationKeys);
   }
 
   static BoundStatement bindWithName(PreparedStatement prepared, String name) {
@@ -138,5 +141,28 @@ final class CassandraUtil {
 
     private static final Random RAND = new Random(System.nanoTime());
     private static final BigInteger OFFSET = BigInteger.valueOf(Integer.MAX_VALUE);
+  }
+
+  static List<LocalDate> getDays(long endTs, @Nullable Long lookback) {
+    long to = midnightUTC(endTs);
+    long startMillis = endTs - (lookback != null ? lookback : endTs);
+    long from = startMillis <= 0 ? 0 : midnightUTC(startMillis); // >= 1970
+
+    List<LocalDate> days = new ArrayList<>();
+    for (long time = from; time <= to; time += TimeUnit.DAYS.toMillis(1)) {
+      days.add(LocalDate.fromMillisSinceEpoch(time));
+    }
+    return days;
+  }
+
+  /** For bucketed data floored to the day. For example, dependency links. */
+  static long midnightUTC(long epochMillis) {
+    Calendar day = Calendar.getInstance(UTC);
+    day.setTimeInMillis(epochMillis);
+    day.set(Calendar.MILLISECOND, 0);
+    day.set(Calendar.SECOND, 0);
+    day.set(Calendar.MINUTE, 0);
+    day.set(Calendar.HOUR_OF_DAY, 0);
+    return day.getTimeInMillis();
   }
 }

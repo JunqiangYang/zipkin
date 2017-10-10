@@ -18,7 +18,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
-import org.springframework.boot.autoconfigure.PropertyPlaceholderAutoConfiguration;
+import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import zipkin.autoconfigure.storage.cassandra3.ZipkinCassandra3StorageAutoConfiguration;
 import zipkin.autoconfigure.storage.cassandra3.ZipkinCassandra3StorageProperties;
@@ -85,7 +85,7 @@ public class ZipkinCassandra3StorageAutoConfigurationTest {
     context.register(PropertyPlaceholderAutoConfiguration.class,
         ZipkinCassandra3StorageAutoConfiguration.class);
     context.refresh();
-    assertThat(context.getBean(Cassandra3Storage.class).strictTraceId).isTrue();
+    assertThat(context.getBean(Cassandra3Storage.class).strictTraceId()).isTrue();
   }
 
   @Test
@@ -97,6 +97,6 @@ public class ZipkinCassandra3StorageAutoConfigurationTest {
         ZipkinCassandra3StorageAutoConfiguration.class);
     context.refresh();
 
-    assertThat(context.getBean(Cassandra3Storage.class).strictTraceId).isFalse();
+    assertThat(context.getBean(Cassandra3Storage.class).strictTraceId()).isFalse();
   }
 }

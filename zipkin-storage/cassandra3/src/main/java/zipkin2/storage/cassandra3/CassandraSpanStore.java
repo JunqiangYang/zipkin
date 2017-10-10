@@ -39,7 +39,6 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -55,8 +54,8 @@ import zipkin2.Call;
 import zipkin2.DependencyLink;
 import zipkin2.Span;
 import zipkin2.internal.DependencyLinker;
-import zipkin2.storage.SpanStore;
 import zipkin2.storage.QueryRequest;
+import zipkin2.storage.SpanStore;
 import zipkin2.storage.cassandra3.Schema.AnnotationUDT;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -65,7 +64,6 @@ import static com.google.common.util.concurrent.Futures.allAsList;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
 import static com.google.common.util.concurrent.Futures.transformAsync;
-import static zipkin.internal.Util.getDays;
 import static zipkin2.storage.cassandra3.Schema.TABLE_DEPENDENCY;
 import static zipkin2.storage.cassandra3.Schema.TABLE_SERVICE_SPANS;
 import static zipkin2.storage.cassandra3.Schema.TABLE_SPAN;
@@ -95,11 +93,11 @@ final class CassandraSpanStore implements SpanStore {
   private final Function<List<Map<String, Long>>, Map<String, Long>> collapseTraceIdMaps;
   private final int indexTtl;
 
-  CassandraSpanStore(Session session, int maxTraceCols, int indexFetchMultiplier, boolean strictTraceId) {
-    this.session = session;
-    this.maxTraceCols = maxTraceCols;
-    this.indexFetchMultiplier = indexFetchMultiplier;
-    this.strictTraceId = strictTraceId;
+  CassandraSpanStore(Cassandra3Storage storage) {
+    session = storage.session();
+    maxTraceCols = storage.maxTraceCols();
+    indexFetchMultiplier = storage.indexFetchMultiplier();
+    strictTraceId = storage.strictTraceId();
 
     selectTraces = session.prepare(
         QueryBuilder.select(
@@ -334,16 +332,11 @@ final class CassandraSpanStore implements SpanStore {
   }
 
   @Override public Call<List<DependencyLink>> getDependencies(long endTs, long lookback) {
-    List<Date> days = getDays(endTs, lookback);
-    if (days.isEmpty()) return Call.emptyList();
-    List<LocalDate> dates = new ArrayList<>();
-    for (Date day : days) {
-      dates.add(LocalDate.fromMillisSinceEpoch(day.getTime()));
-    }
+    List<LocalDate> days = CassandraUtil.getDays(endTs, lookback);
     try {
       BoundStatement bound = CassandraUtil
               .bindWithName(selectDependencies, "select-dependencies")
-              .setList("days", dates);
+              .setList("days", days);
 
       return new ListenableFutureCall<List<DependencyLink>>() {
         @Override protected ListenableFuture<List<DependencyLink>> newFuture() {

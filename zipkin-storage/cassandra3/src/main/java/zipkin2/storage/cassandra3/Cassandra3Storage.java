@@ -15,19 +15,16 @@ package zipkin2.storage.cassandra3;
 
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.google.auto.value.AutoValue;
+import com.google.auto.value.extension.memoized.Memoized;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-import java.io.IOException;
 import javax.annotation.Nullable;
-import zipkin.internal.LazyCloseable;
 import zipkin2.CheckResult;
 import zipkin2.storage.QueryRequest;
 import zipkin2.storage.SpanConsumer;
 import zipkin2.storage.SpanStore;
 import zipkin2.storage.StorageComponent;
-
-import static zipkin.internal.Util.checkNotNull;
-
 
 /**
  * CQL3 implementation of zipkin storage.
@@ -39,7 +36,8 @@ import static zipkin.internal.Util.checkNotNull;
  */
 // This component is named Cassandra3Storage as it correlates to "cassandra3" storage types, and
 // makes health-checks more obvious. Note: this is the only public type in the package.
-public final class Cassandra3Storage extends StorageComponent {
+@AutoValue
+public abstract class Cassandra3Storage extends StorageComponent {
 
   // @FunctionalInterface, except safe for lower language levels
   public interface SessionFactory {
@@ -49,91 +47,57 @@ public final class Cassandra3Storage extends StorageComponent {
   }
 
   public static Builder newBuilder() {
-    return new Builder();
+    return new AutoValue_Cassandra3Storage.Builder()
+      .strictTraceId(true)
+      .keyspace(Schema.DEFAULT_KEYSPACE)
+      .contactPoints("localhost")
+      .maxConnections(8)
+      .ensureSchema(true)
+      .useSsl(false)
+      .maxTraceCols(100000)
+      .indexFetchMultiplier(3)
+      .sessionFactory(SessionFactory.DEFAULT);
   }
 
-  public static final class Builder extends StorageComponent.Builder {
-    boolean strictTraceId = true;
-    String keyspace = Schema.DEFAULT_KEYSPACE;
-    String contactPoints = "localhost";
-    String localDc;
-    int maxConnections = 8;
-    boolean ensureSchema = true;
-    boolean useSsl = false;
-    String username;
-    String password;
-    int maxTraceCols = 100000;
-    int indexFetchMultiplier = 3;
-    SessionFactory sessionFactory = SessionFactory.DEFAULT;
-
+  @AutoValue.Builder
+  public static abstract class Builder extends StorageComponent.Builder {
     /** {@inheritDoc} */
-    @Override public Builder strictTraceId(boolean strictTraceId) {
-      this.strictTraceId = strictTraceId;
-      return this;
-    }
+    @Override public abstract Builder strictTraceId(boolean strictTraceId);
 
     /** Override to control how sessions are created. */
-    public Builder sessionFactory(SessionFactory sessionFactory) {
-      this.sessionFactory = checkNotNull(sessionFactory, "sessionFactory");
-      return this;
-    }
+    public abstract Builder sessionFactory(SessionFactory sessionFactory);
 
     /** Keyspace to store span and index data. Defaults to "zipkin3" */
-    public Builder keyspace(String keyspace) {
-      this.keyspace = checkNotNull(keyspace, "keyspace");
-      return this;
-    }
+    public abstract Builder keyspace(String keyspace);
 
     /** Comma separated list of host addresses part of Cassandra cluster. You can also specify a custom port with 'host:port'. Defaults to localhost on port 9042 **/
-    public Builder contactPoints(String contactPoints) {
-      this.contactPoints = checkNotNull(contactPoints, "contactPoints");
-      return this;
-    }
-
+    public abstract Builder contactPoints(String contactPoints);
     /**
      * Name of the datacenter that will be considered "local" for latency load balancing. When
      * unset, load-balancing is round-robin.
      */
-    public Builder localDc(@Nullable String localDc) {
-      this.localDc = localDc;
-      return this;
-    }
+    public abstract Builder localDc(@Nullable String localDc);
 
     /** Max pooled connections per datacenter-local host. Defaults to 8 */
-    public Builder maxConnections(int maxConnections) {
-      this.maxConnections = maxConnections;
-      return this;
-    }
+    public abstract Builder maxConnections(int maxConnections);
 
     /**
      * Ensures that schema exists, if enabled tries to execute script io.zipkin:zipkin-cassandra-core/cassandra-schema-cql3.txt.
      * Defaults to true.
      */
-    public Builder ensureSchema(boolean ensureSchema) {
-      this.ensureSchema = ensureSchema;
-      return this;
-    }
+    public abstract Builder ensureSchema(boolean ensureSchema);
 
     /**
      * Use ssl for driver
      * Defaults to false.
      */
-    public Builder useSsl(boolean useSsl) {
-      this.useSsl = useSsl;
-      return this;
-    }
+    public abstract Builder useSsl(boolean useSsl);
 
     /** Will throw an exception on startup if authentication fails. No default. */
-    public Builder username(@Nullable String username) {
-      this.username = username;
-      return this;
-    }
+    public abstract Builder username(@Nullable String username);
 
     /** Will throw an exception on startup if authentication fails. No default. */
-    public Builder password(@Nullable String password) {
-      this.password = password;
-      return this;
-    }
+    public abstract Builder password(@Nullable String password);
 
     /**
      * Spans have multiple values for the same id. For example, a client and server contribute to
@@ -141,10 +105,7 @@ public final class Cassandra3Storage extends StorageComponent {
      * the ids. This defines a threshold which accommodates this situation, without looking for an
      * unbounded number of results.
      */
-    public Builder maxTraceCols(int maxTraceCols) {
-      this.maxTraceCols = maxTraceCols;
-      return this;
-    }
+    public abstract Builder maxTraceCols(int maxTraceCols);
 
     /**
      * How many more index rows to fetch than the user-supplied query limit. Defaults to 3.
@@ -156,77 +117,64 @@ public final class Cassandra3Storage extends StorageComponent {
      * including table design and collection implementation. As there's no way to DISTINCT out
      * duplicates server-side, this over-fetches client-side when {@code indexFetchMultiplier} > 1.
      */
-    public Builder indexFetchMultiplier(int indexFetchMultiplier) {
-      this.indexFetchMultiplier = indexFetchMultiplier;
-      return this;
-    }
+    public abstract Builder indexFetchMultiplier(int indexFetchMultiplier);
 
-    @Override public Cassandra3Storage build() {
-      return new Cassandra3Storage(this);
-    }
+    @Override abstract public Cassandra3Storage build();
 
     Builder() {
     }
   }
 
-  final int maxTraceCols;
-  final String contactPoints;
-  final int maxConnections;
-  final String localDc;
-  final String username;
-  final String password;
-  final boolean ensureSchema;
-  final boolean useSsl;
-  final String keyspace;
-  final int indexFetchMultiplier;
-  final boolean strictTraceId;
-  final LazyCloseable<Session> session;
+  abstract int maxTraceCols();
+  abstract String contactPoints();
+  abstract int maxConnections();
+  @Nullable abstract String localDc();
+  @Nullable abstract String username();
+  @Nullable abstract String password();
+  abstract boolean ensureSchema();
+  abstract boolean useSsl();
+  abstract String keyspace();
+  abstract int indexFetchMultiplier();
+  abstract boolean strictTraceId();
+  abstract SessionFactory sessionFactory();
 
-  Cassandra3Storage(Builder builder) {
-    this.contactPoints = builder.contactPoints;
-    this.maxConnections = builder.maxConnections;
-    this.localDc = builder.localDc;
-    this.username = builder.username;
-    this.password = builder.password;
-    this.ensureSchema = builder.ensureSchema;
-    this.useSsl = builder.useSsl;
-    this.keyspace = builder.keyspace;
-    this.maxTraceCols = builder.maxTraceCols;
-    this.indexFetchMultiplier = builder.indexFetchMultiplier;
-    this.strictTraceId = builder.strictTraceId;
-    final SessionFactory sessionFactory = builder.sessionFactory;
-    this.session = new LazyCloseable<Session>() {
-      @Override protected Session compute() {
-        return sessionFactory.create(Cassandra3Storage.this);
-      }
-    };
-  }
+  /** session and close are typically called from different threads */
+  volatile boolean provisioned, closeCalled;
 
   /** Lazy initializes or returns the session in use by this storage component. */
-  public Session session() {
-    return session.get();
+  @Memoized Session session() {
+    Session result = sessionFactory().create(this);
+    provisioned = true;
+    return result;
   }
 
-  @Override public SpanStore spanStore() {
-    return new CassandraSpanStore(session.get(), maxTraceCols, indexFetchMultiplier, strictTraceId);
+  /** {@inheritDoc} Memoized in order to avoid re-preparing statements */
+  @Memoized @Override public SpanStore spanStore() {
+    return new CassandraSpanStore(this);
   }
 
-  @Override public SpanConsumer spanConsumer() {
-    return new CassandraSpanConsumer(session.get(), strictTraceId);
+  /** {@inheritDoc} Memoized in order to avoid re-preparing statements */
+  @Memoized @Override public SpanConsumer spanConsumer() {
+    return new CassandraSpanConsumer(this);
   }
 
   @Override public CheckResult check() {
     try {
-      session.get().execute(QueryBuilder.select("trace_id").from("span").limit(1));
+      if (closeCalled) throw new IllegalStateException("closed");
+      session().execute(QueryBuilder.select("trace_id").from("span").limit(1));
     } catch (RuntimeException e) {
       return CheckResult.failed(e);
     }
     return CheckResult.OK;
   }
 
-  @Override public void close() throws IOException {
-    session.close();
+  @Override public synchronized void close() {
+    if (closeCalled) return;
+    if (provisioned) session().close();
+    closeCalled = true;
   }
+
+  abstract Builder toBuilder(); // initially visible for testing. we might promote it later
 
   /** Truncates all the column families, or throws on any failure. */
   @VisibleForTesting void clear() {
@@ -236,7 +184,10 @@ public final class Cassandra3Storage extends StorageComponent {
       Schema.TABLE_SERVICE_SPANS,
       Schema.TABLE_DEPENDENCY
     )) {
-      session.get().execute("TRUNCATE " + cf);
+      session().execute("TRUNCATE " + cf);
     }
+  }
+
+  Cassandra3Storage() {
   }
 }

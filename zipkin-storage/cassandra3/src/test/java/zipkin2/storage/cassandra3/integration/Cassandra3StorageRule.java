@@ -18,7 +18,6 @@ import com.datastax.driver.core.HostDistance;
 import com.datastax.driver.core.PoolingOptions;
 import com.datastax.driver.core.Session;
 import com.google.common.net.HostAndPort;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import org.junit.AssumptionViolatedException;
@@ -97,7 +96,7 @@ class Cassandra3StorageRule extends ExternalResource {
   protected void after() {
     try {
       if (storage != null) storage.close();
-    } catch (IOException e) {
+    } catch (RuntimeException | Error e) {
       LOGGER.warn("error closing storage " + e.getMessage(), e);
     } finally {
       if (container != null) {

@@ -45,9 +45,9 @@ final class CassandraSpanConsumer implements SpanConsumer {
   private final PreparedStatement insertTraceServiceSpanName;
   private final PreparedStatement insertServiceSpanName;
 
-  CassandraSpanConsumer(Session session, boolean strictTraceId) {
-    this.session = session;
-    this.strictTraceId = strictTraceId;
+  CassandraSpanConsumer(Cassandra3Storage storage) {
+    session = storage.session();
+    strictTraceId = storage.strictTraceId();
     Schema.readMetadata(session);
 
     insertSpan = session.prepare(

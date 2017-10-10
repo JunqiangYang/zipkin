@@ -18,7 +18,6 @@ import java.io.IOException;
 import org.junit.ClassRule;
 import org.junit.Ignore;
 import org.junit.Rule;
-import org.junit.Test;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
@@ -67,7 +66,7 @@ public class ITCassandra3Storage {
     }
 
     @Override protected Session session() {
-      return storage.storage.session();
+      return InternalForTests.session(storage.storage);
     }
   }
 

@@ -57,12 +57,12 @@ final class DefaultSessionFactory implements Cassandra3Storage.SessionFactory {
       Cluster cluster = closer.register(buildCluster(cassandra));
       cluster.register(new QueryLogger.Builder().build());
       Session session;
-      if (cassandra.ensureSchema) {
+      if (cassandra.ensureSchema()) {
         session = closer.register(cluster.connect());
-        Schema.ensureExists(cassandra.keyspace, session);
-        session.execute("USE " + cassandra.keyspace);
+        Schema.ensureExists(cassandra.keyspace(), session);
+        session.execute("USE " + cassandra.keyspace());
       } else {
-        session = cluster.connect(cassandra.keyspace);
+        session = cluster.connect(cassandra.keyspace());
       }
 
       initializeUDTs(session);
@@ -103,29 +103,29 @@ final class DefaultSessionFactory implements Cassandra3Storage.SessionFactory {
     int defaultPort = findConnectPort(contactPoints);
     builder.addContactPointsWithPorts(contactPoints);
     builder.withPort(defaultPort); // This ends up protocolOptions.port
-    if (cassandra.username != null && cassandra.password != null) {
-      builder.withCredentials(cassandra.username, cassandra.password);
+    if (cassandra.username() != null && cassandra.password() != null) {
+      builder.withCredentials(cassandra.username(), cassandra.password());
     }
     builder.withRetryPolicy(ZipkinRetryPolicy.INSTANCE);
     builder.withLoadBalancingPolicy(new TokenAwarePolicy(new LatencyAwarePolicy.Builder(
-        cassandra.localDc != null
-            ? DCAwareRoundRobinPolicy.builder().withLocalDc(cassandra.localDc).build()
+        cassandra.localDc() != null
+            ? DCAwareRoundRobinPolicy.builder().withLocalDc(cassandra.localDc()).build()
             : new RoundRobinPolicy()
         // This can select remote, but LatencyAwarePolicy will prefer local
     ).build()));
     builder.withPoolingOptions(new PoolingOptions().setMaxConnectionsPerHost(
-        HostDistance.LOCAL, cassandra.maxConnections
+        HostDistance.LOCAL, cassandra.maxConnections()
     ));
 
     builder.withQueryOptions(
       new QueryOptions()
         // if local_dc isn't defined LOCAL_ONE incorrectly sticks to first seed host that connects
         .setConsistencyLevel(
-          null != cassandra.localDc ? ConsistencyLevel.LOCAL_ONE : ConsistencyLevel.ONE)
+          null != cassandra.localDc() ? ConsistencyLevel.LOCAL_ONE : ConsistencyLevel.ONE)
         // all zipkin cql writes are idempotent
         .setDefaultIdempotence(true));
 
-    if (cassandra.useSsl) {
+    if (cassandra.useSsl()) {
       builder = builder.withSSL();
     }
 
@@ -134,7 +134,7 @@ final class DefaultSessionFactory implements Cassandra3Storage.SessionFactory {
 
   static List<InetSocketAddress> parseContactPoints(Cassandra3Storage cassandra) {
     List<InetSocketAddress> result = new LinkedList<>();
-    for (String contactPoint : cassandra.contactPoints.split(",")) {
+    for (String contactPoint : cassandra.contactPoints().split(",")) {
       HostAndPort parsed = HostAndPort.fromString(contactPoint);
       result.add(
           new InetSocketAddress(parsed.getHostText(), parsed.getPortOrDefault(9042)));
