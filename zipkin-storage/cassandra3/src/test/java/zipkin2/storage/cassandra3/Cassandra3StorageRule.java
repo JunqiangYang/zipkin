@@ -62,13 +62,13 @@ public class Cassandra3StorageRule extends ExternalResource {
     }
 
     try {
-      this.storage = tryToInitializeStorage();
+      storage = tryToInitializeStorage();
     } catch (RuntimeException | Error e) {
       if (container == null) throw e;
       LOGGER.warn("Couldn't connect to docker image " + image + ": " + e.getMessage(), e);
       container.stop();
       container = null; // try with local connection instead
-      this.storage = tryToInitializeStorage();
+      storage = tryToInitializeStorage();
     }
   }
 

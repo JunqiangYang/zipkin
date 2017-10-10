@@ -27,11 +27,13 @@ import zipkin2.storage.cassandra3.Cassandra3StorageRule;
 @RunWith(Enclosed.class)
 public class ITCassandra3Storage {
 
-  @ClassRule
-  public static Cassandra3StorageRule storage =
-    new Cassandra3StorageRule("openzipkin/zipkin-cassandra:1.31.1", "test_zipkin3");
+  static Cassandra3StorageRule classRule() {
+    return new Cassandra3StorageRule("openzipkin/zipkin-cassandra:1.31.1", "test_zipkin3");
+  }
 
   public static class DependenciesTest extends CassandraDependenciesTest {
+    @ClassRule public static Cassandra3StorageRule storage = classRule();
+
     @Override protected StorageComponent v2Storage() {
       return storage.get();
     }
@@ -42,6 +44,8 @@ public class ITCassandra3Storage {
   }
 
   public static class SpanStoreTest extends CassandraSpanStoreTest {
+    @ClassRule public static Cassandra3StorageRule storage = classRule();
+
     @Override protected Cassandra3Storage v2Storage() {
       return storage.get();
     }
@@ -52,6 +56,8 @@ public class ITCassandra3Storage {
   }
 
   public static class SpanConsumerTest extends CassandraSpanConsumerTest {
+    @ClassRule public static Cassandra3StorageRule storage = classRule();
+
     @Override protected Cassandra3Storage storage() {
       return storage.get();
     }
@@ -62,7 +68,7 @@ public class ITCassandra3Storage {
   }
 
   public static class EnsureSchemaTest extends CassandraEnsureSchemaTest {
-
+    @ClassRule public static Cassandra3StorageRule storage = classRule();
     @Rule public TestName name = new TestName();
 
     @Override protected TestName name() {
@@ -75,6 +81,8 @@ public class ITCassandra3Storage {
   }
 
   public static class StrictTraceIdFalseTest extends CassandraStrictTraceIdFalseTest {
+    @ClassRule public static Cassandra3StorageRule storage = classRule();
+
     @Override protected StorageComponent v2Storage() {
       return storage.get();
     }

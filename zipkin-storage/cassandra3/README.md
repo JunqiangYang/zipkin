@@ -19,8 +19,7 @@ See [Logging Query Latencies](http://docs.datastax.com/en/developer/java-driver/
 ## Testing
 This module conditionally runs integration tests against a local Cassandra instance.
 
-Tests are configured to automatically access Cassandra started with its defaults.
-To ensure tests execute, download a Cassandra 3.9+ distribution, extract it, and run `bin/cassandra`.
+This starts a docker container or attempts to re-use an existing cassandra node running on localhost.
 
 If you run tests via Maven or otherwise when Cassandra is not running,
 you'll notice tests are silently skipped.
@@ -33,6 +32,14 @@ Tests run: 62, Failures: 0, Errors: 0, Skipped: 48
 This behaviour is intentional: We don't want to burden developers with
 installing and running all storage options to test unrelated change.
 That said, all integration tests run on pull request via Travis.
+
+### Running a single test
+
+To run a single integration test, use the following syntax:
+
+```bash
+$ ./mvnw -Dit.test='ITCassandra3Storage$SpanStoreTest#overFetchesToCompensateForDuplicateIndexData' -pl zipkin-storage/cassandra3 clean verify
+```
 
 ## Tuning
 This component is tuned to help reduce the size of indexes needed to
